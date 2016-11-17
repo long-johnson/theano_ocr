@@ -54,9 +54,9 @@ Yval = np.array(Yval, dtype=np.int64)
 n_epochs = 500
 batch_size = 2048
 alpha = np.float32(1e-4)     # learning rate
-lambd = 0.0    # regularization coefficient
+lambd = 1.0    # regularization coefficient
 mu = np.float32(0.9)        # momentum rate
-dropout = 0.0
+dropout = 0.5
 
 
 #
@@ -68,8 +68,6 @@ alpha_var = T.fscalar("alpha")
 mu_var = T.fscalar("mu")
 x_var = T.tensor4("x") # inut var
 y_var = T.lvector("y") # target var
-
-velocity_w = theano.shared(np.zeros((n_feats, K), dtype=np.float32), name="vel_w")
 
 network = lasagne.layers.InputLayer(shape=(None, 1, pic_size, pic_size),
                                         input_var=x_var)
@@ -161,137 +159,140 @@ datagen.fit(Xtrain)
 #
 # Training
 #
-costs = []
-accuracies_train = []
-accuracies_val = []
+train_costs = []
+train_accs = []
+val_costs = []
+val_accs = []
 time_experiment_start = time.time()
 lookback = 5
 lookback_epoch = 0
 for epoch in range(n_epochs):
     time_start = time.time()
-    # pass through training data
-    cost = 0.0
+    # pass through augmented training data with dropout
     n_train_batches = int(np.ceil(len(Xtrain) / batch_size))
-    step = 0
-    acc_train = 0.0
-    #for Xbatch, Ybatch in iterate_minibatches(Xtrain, Ytrain, batch_size, shuffle=False):
-    for Xbatch, Ybatch in datagen.flow(Xtrain, Ytrain, batch_size, shuffle=False):
-        if step >= n_train_batches:
-            break
+    datagen_train = datagen.flow(Xtrain, Ytrain, batch_size, shuffle=False)
+    for step in range(n_train_batches):
+        Xbatch, Ybatch = datagen_train.next()
         Xbatch = np.float32(Xbatch)
         train_fn(Xbatch, Ybatch, alpha, mu)
-        batch_loss, pred_batch = val_fn(Xbatch, Ybatch)
-        acc_train = acc_train + np.count_nonzero(np.equal(pred_batch, Ybatch))
-        cost = cost + batch_loss
-        step = step + 1
-    cost = cost / n_train_batches
-    acc_train = acc_train / len(Ytrain) * 100.0
-    # pass through validation data
-    acc_val = 0.0
+    # pass through unmodified training data without dropout
+    train_acc = 0.0
+    train_cost = 0.0
+    for Xbatch, Ybatch in iterate_minibatches(Xtrain, Ytrain, batch_size, shuffle=False):
+        cost, pred = val_fn(Xbatch, Ybatch)
+        train_acc += np.count_nonzero(np.equal(pred, Ybatch))
+        train_cost += cost
+    train_acc = 100.0 * train_acc / len(Ytrain)
+    train_cost /= n_train_batches
+    # pass through validation data without dropout
+    val_acc = 0.0
+    val_cost = 0.0
     for Xbatch, Ybatch in iterate_minibatches(Xval, Yval, batch_size, shuffle=False):
-        acc_val = acc_val + np.count_nonzero(np.equal(val_fn(Xbatch, Ybatch)[1], Ybatch))
-    acc_val = acc_val / len(Yval) * 100.0
+        cost, pred = val_fn(Xbatch, Ybatch)
+        val_acc += np.count_nonzero(np.equal(pred, Ybatch))
+        val_cost += cost
+    val_acc = 100.0 * val_acc / len(Yval)
+    val_cost /= n_train_batches
     # decrease learning rate on some condition
     if lookback_epoch >= lookback\
-    and min(costs[-lookback:]) < cost:
-    #and max(accuracies_val[-lookback:]) > acc_val:
-    #and min(costs[-lookback:]) < cost:
-    #and all(np.array(accuracies_val[-lookback:]) > acc_val):
+    and min(train_costs[-lookback:]) < train_cost:
         alpha = 0.5 * alpha
         lookback = lookback * 2
         lookback_epoch = 0
         mu = np.float32(0.99)
-        #temp = mu * 1.05
-    #    mu = temp if temp < 0.91 else 0.99            
-    costs.append(cost)
-    accuracies_train.append(acc_train)
-    accuracies_val.append(acc_val)
-    print ("epoch = {}, cost = {:.4f}, acc_train={:.2f}%, acc_val = {:.2f}%, iter_time = {:.3f} s"\
-           .format(epoch, cost, acc_train, acc_val, time.time() - time_start))
+    # save data to plot it later
+    train_costs.append(train_cost)
+    train_accs.append(train_acc)
+    val_costs.append(val_cost)
+    val_accs.append(val_acc)
+    print ("epoch = {}, train_cost = {:.4f}, val_cost = {:.2f}, train_acc={:.2f}%, "\
+           "val_acc = {:.2f}%, iter_time = {:.3f} s"\
+           .format(epoch, train_cost, val_cost, train_acc, val_acc, time.time() - time_start))
     print ("alpha={}, mu={}".format(alpha, mu))
-    lookback_epoch = lookback_epoch + 1
+    lookback_epoch += 1
 print()
 print ("time elapsed, min")
 print ((time.time() - time_experiment_start) / 60)
-print("final cost")
-print(costs[-1])
+print("final train cost")
+print(train_costs[-1])
 import winsound
-#winsound.Beep(500,2000)
+winsound.Beep(500, 2000)
 
 
-#raise Exception('exit')
 
 #
 # validation
 #
-n_correct_train = 0
+train_acc = 0
 for Xbatch, Ybatch in iterate_minibatches(Xtrain, Ytrain, batch_size):
-    n_correct_train = n_correct_train + np.count_nonzero(np.equal(val_fn(Xbatch, Ybatch)[1], Ybatch))
-acc_train = n_correct_train / len(Ytrain) * 100.0
-print("train prediction")
-print(acc_train)
-n_correct_val = 0
+    train_acc += np.count_nonzero(np.equal(val_fn(Xbatch, Ybatch)[1], Ybatch))
+train_acc = 100.0 * train_acc / len(Ytrain)
+print("final train prediction")
+print(train_acc)
+
+val_acc = 0
 for Xbatch, Ybatch in iterate_minibatches(Xval, Yval, batch_size):
-    n_correct_val = n_correct_val + np.count_nonzero(np.equal(val_fn(Xbatch, Ybatch)[1], Ybatch))
-acc_val = n_correct_val / len(Yval) * 100.0
-print("val prediction")
-print(acc_val)
+    val_acc += np.count_nonzero(np.equal(val_fn(Xbatch, Ybatch)[1], Ybatch))
+val_acc = 100.0 * val_acc / len(Yval)
+print("final val prediction")
+print(val_acc)
+
+
+
+
+
 
 #
-# Training plots
-#
 # cost plot
+#
+plt.figure()
 suptitle = "CNNv1_n_epochs={}, batch_size={}, alpha={}, lambd={}, mu={}, acc_train={:.1f}, acc_val={:.1f},"\
            "dropout={}"\
-           .format(n_epochs, batch_size, alpha, lambd, mu, acc_train, acc_val, dropout)
+           .format(n_epochs, batch_size, alpha, lambd, mu, train_acc, val_acc, dropout)
 plt.suptitle(suptitle)
-plt.plot(costs[0:], label="cost")
+plt.plot(train_costs, label="train cost")
+plt.plot(val_costs, label="val cost")
 plt.legend()
 ax = plt.gca()
 ax.grid(True)
 plt.savefig(out_dir + suptitle + ".png")
 plt.show()
 
-# acc plot
+#
+# accuracies plot
+#
+plt.figure()
 plt.suptitle(suptitle)
-plt.plot(accuracies_train, label="acc_train")
-plt.plot(accuracies_val, label="acc_val")
+plt.plot(train_accs, label="train_accs")
+plt.plot(val_accs, label="val_accs")
 plt.legend(loc='lower right')
 ax = plt.gca()
 ax.grid(True)
 plt.savefig(out_dir + "accuracy " + suptitle + ".png")
 plt.show()
 
+
+
+
+
+
+
 #
-# draw acc val, acc train plots
+# save params
 #
-#print()
-#print("started accumulating data for acc_val, acc_train plots")
-#w_init = rng.randn(n_feats, K)
-#b_init = np.zeros(K)
-#xs = list(range(1, N, N // 10)) + [N]
-#predicts_train = []
-#predicts_val = []
-#for i in xs:
-#    w.set_value(w_init)
-#    b.set_value(b_init)
-#    for _ in range(training_steps):
-#        train(Xtrain[:i], Ytrain[:i])
-#    predicts_train += [100.0 - np.count_nonzero(np.equal(predict(Xtrain[:i]), Ytrain[:i])) / Ytrain[:i].size * 100.0]
-#    predicts_val += [100.0 - np.count_nonzero(np.equal(predict(Xval), Yval)) / Yval.size * 100.0]
-#    print ("Used {} train samples".format(i))
+params = lasagne.layers.get_all_param_values(network)
+np.savez(out_dir + suptitle + ".npz", *params)
+
+
+
+
+
+
+
 #
-#plt.plot(xs, predicts_train)
-#plt.plot(xs, predicts_val)
-#plt.show()
-
-
-
-
-
-
-
 # visualize first layer filters
+#
+plt.figure()
 params = lasagne.layers.get_all_param_values(network)
 params_conv_l1 = params[0]
 for i in range(32):
@@ -301,47 +302,14 @@ for i in range(32):
     #plt.colorbar()
 plt.show()
 
-
-
-
-
-
-
-# save params
-params = lasagne.layers.get_all_param_values(network)
-np.savez(out_dir + suptitle + ".npz", *params)
-
-
-#for i in range(len(params)):
-#    np.save(out_dir + suptitle + "_" + str(i) + ".npy", params[i])
-
-plt.pcolor(np.flipud(Xval[1000,0,:,:]), cmap=plt.cm.Greys_r)
+#
+# visualize FC layer
+#
+plt.figure()
+plt.pcolor(np.flipud(params[2]), cmap=plt.cm.Greys_r)
 plt.colorbar()
 plt.show()
 
-#for i in range(1):
-#    rnd_idx = np.random.randint(0, len(Xval)-1)
-#    idx = 200
-#    xval = Xval[idx]
-#    yval = Yval[idx]
-#    print(predict([xval]))
-#    print(yval)
-#    plt.pcolor(np.flipud(xval.reshape((pic_size, pic_size))), cmap=plt.cm.gray)
-#    plt.colorbar()
-#    plt.show()
 
-# save params
-#np.save(out_dir + "W_"+suptitle+".npy", W_data)
-#np.save(out_dir + "b_"+suptitle+".npy", b_data)
 
-#
-# Visualise weights
-#
-#for k in range(K):
-#    W_visual = np.flipud(W_data[:, k].reshape((pic_size, pic_size)))
-#    plt.pcolor(W_visual)
-#    plt.colorbar()
-#    plt.show()
-    
-    
 
