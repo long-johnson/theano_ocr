@@ -12,6 +12,7 @@ import os
 import lasagne
 import keras
 from keras.preprocessing import image
+import nn_models
 
 dataset_dir = "data/font/"
 out_dir = "out/"
@@ -56,72 +57,14 @@ batch_size = 2048
 alpha = np.float32(1e-4)     # learning rate
 lambd = 1.0    # regularization coefficient
 mu = np.float32(0.9)        # momentum rate
-dropout = 0.5
+dropout_rate = 0.5
 
 
 #
 # Theano graph construction
 #
-
-# Declare Theano symbolic variables
-alpha_var = T.fscalar("alpha")
-mu_var = T.fscalar("mu")
-x_var = T.tensor4("x") # inut var
-y_var = T.lvector("y") # target var
-
-network = lasagne.layers.InputLayer(shape=(None, 1, pic_size, pic_size),
-                                        input_var=x_var)
-network = lasagne.layers.Conv2DLayer(
-        network, num_filters=32, filter_size=(5, 5), pad = 'same',
-        nonlinearity=lasagne.nonlinearities.rectify,
-        W=lasagne.init.GlorotUniform())
-network = lasagne.layers.MaxPool2DLayer(network, pool_size=(2, 2))
-
-# Another convolution with 32 5x5 kernels, and another 2x2 pooling:
-network = lasagne.layers.Conv2DLayer(
-        network, num_filters=32, filter_size=(5, 5), pad = 'same',
-        nonlinearity=lasagne.nonlinearities.rectify)
-network = lasagne.layers.MaxPool2DLayer(network, pool_size=(2, 2))
-# 8192 units
-
-# A fully-connected layer of 256 units with 50% dropout on its inputs:
-network = lasagne.layers.DenseLayer(
-        lasagne.layers.dropout(network, p=dropout),
-        num_units=256,
-        nonlinearity=lasagne.nonlinearities.rectify)
-
-# And, finally, the 10-unit output layer with 50% dropout on its inputs:
-network = lasagne.layers.DenseLayer(
-        lasagne.layers.dropout(network, p=dropout),
-        num_units=36,
-        nonlinearity=lasagne.nonlinearities.softmax)
-
-prediction = lasagne.layers.get_output(network)
-loss = lasagne.objectives.categorical_crossentropy(prediction, y_var)
-loss = loss.mean() + lambd * \
-       lasagne.regularization.regularize_network_params(network,
-                                                        lasagne.regularization.l2)
-
-params = lasagne.layers.get_all_params(network, trainable=True)
-updates = lasagne.updates.nesterov_momentum(
-        loss, params, learning_rate=alpha_var, momentum=mu_var)
-
-# Create a loss expression for validation/testing. The crucial difference
-# here is that we do a deterministic forward pass through the network,
-# disabling dropout layers.
-test_prediction = lasagne.layers.get_output(network, deterministic=True)
-test_loss = lasagne.objectives.categorical_crossentropy(test_prediction,
-                                                        y_var)
-test_loss = test_loss.mean()
-# As a bonus, also create an expression for the classification accuracy:
-test_pred = T.argmax(test_prediction, axis=1)
-
-# Compile a function performing a training step on a mini-batch (by giving
-# the updates dictionary) and returning the corresponding training loss:
-train_fn = theano.function([x_var, y_var, alpha_var, mu_var], loss, updates=updates)
-
-# Compile a second function computing the validation loss and accuracy:
-val_fn = theano.function([x_var, y_var], [test_loss, test_pred])
+network, train_fn, val_fn = nn_models.build_cnn_v1(pic_size, lambd,
+                                                   dropout_rate=dropout_rate)
 
 
 # shuffling is slow
