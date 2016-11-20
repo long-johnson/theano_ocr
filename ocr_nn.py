@@ -52,19 +52,27 @@ Yval = np.array(Yval, dtype=np.int64)
 #
 # learning params
 #
-n_epochs = 500
-batch_size = 2048
-alpha = np.float32(1e-4)     # learning rate
-lambd = 1.0    # regularization coefficient
-mu = np.float32(0.9)        # momentum rate
-dropout_rate = 0.5
 
+seed = 2
+n_epochs = 500
+batch_size = 512
+alpha = np.float32(1e-2)     # learning rate
+lambd = 0.0    # regularization coefficient
+mu = np.float32(0.9)        # momentum rate
+dropout_rate = 0.0
+
+
+#
+# Setting seed to reproduce results!
+#
+np.random.seed(seed)
 
 #
 # Theano graph construction
 #
-network, train_fn, val_fn = nn_models.build_cnn_v1(pic_size, lambd,
-                                                   dropout_rate=dropout_rate)
+network, train_fn, val_fn = nn_models.build_cnn_florian(pic_size, lambd,
+                                                        dropout_rate=dropout_rate,
+                                                        complexity=1)
 
 
 # shuffling is slow
@@ -140,7 +148,7 @@ for epoch in range(n_epochs):
     if lookback_epoch >= lookback\
     and min(train_costs[-lookback:]) < train_cost:
         alpha = 0.5 * alpha
-        lookback = lookback * 2
+        # lookback = lookback * 1.1
         lookback_epoch = 0
         mu = np.float32(0.99)
     # save data to plot it later
@@ -190,8 +198,8 @@ print(val_acc)
 #
 plt.figure()
 suptitle = "CNNv1_n_epochs={}, batch_size={}, alpha={}, lambd={}, mu={}, acc_train={:.1f}, acc_val={:.1f},"\
-           "dropout={}"\
-           .format(n_epochs, batch_size, alpha, lambd, mu, train_acc, val_acc, dropout)
+           "dropout={}, seed={}"\
+           .format(n_epochs, batch_size, alpha, lambd, mu, train_acc, val_acc, dropout_rate, seed)
 plt.suptitle(suptitle)
 plt.plot(train_costs, label="train cost")
 plt.plot(val_costs, label="val cost")
