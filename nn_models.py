@@ -104,56 +104,66 @@ def build_cnn_florian(pic_size, lambd, dropout_rate=0.0, complexity=4):
     # CONV-RELU
     network = lasagne.layers.Conv2DLayer(
             network, num_filters=32*complexity, filter_size=(3, 3), pad = 'same',
-            nonlinearity=lasagne.nonlinearities.rectify)
+            nonlinearity=lasagne.nonlinearities.rectify,
+            W=lasagne.init.HeNormal(gain='relu'))
     # CONV-RELU
     network = lasagne.layers.Conv2DLayer(
             network, num_filters=32*complexity, filter_size=(3, 3), pad = 'same',
-            nonlinearity=lasagne.nonlinearities.rectify)
+            nonlinearity=lasagne.nonlinearities.rectify,
+            W=lasagne.init.HeNormal(gain='relu'))
     # POOL
     network = lasagne.layers.MaxPool2DLayer(network, pool_size=(2, 2))
     
     # CONV-RELU
     network = lasagne.layers.Conv2DLayer(
             network, num_filters=64*complexity, filter_size=(3, 3), pad = 'same',
-            nonlinearity=lasagne.nonlinearities.rectify)
+            nonlinearity=lasagne.nonlinearities.rectify,
+            W=lasagne.init.HeNormal(gain='relu'))
     # CONV-RELU
     network = lasagne.layers.Conv2DLayer(
             network, num_filters=64*complexity, filter_size=(3, 3), pad = 'same',
-            nonlinearity=lasagne.nonlinearities.rectify)
+            nonlinearity=lasagne.nonlinearities.rectify,
+            W=lasagne.init.HeNormal(gain='relu'))
     # POOL
     network = lasagne.layers.MaxPool2DLayer(network, pool_size=(2, 2))
     
     # CONV-RELU
     network = lasagne.layers.Conv2DLayer(
             network, num_filters=128*complexity, filter_size=(3, 3), pad = 'same',
-            nonlinearity=lasagne.nonlinearities.rectify)
+            nonlinearity=lasagne.nonlinearities.rectify,
+            W=lasagne.init.HeNormal(gain='relu'))
     # CONV-RELU
     network = lasagne.layers.Conv2DLayer(
             network, num_filters=128*complexity, filter_size=(3, 3), pad = 'same',
-            nonlinearity=lasagne.nonlinearities.rectify)
+            nonlinearity=lasagne.nonlinearities.rectify,
+            W=lasagne.init.HeNormal(gain='relu'))
     # CONV-RELU
     network = lasagne.layers.Conv2DLayer(
             network, num_filters=128*complexity, filter_size=(3, 3), pad = 'same',
-            nonlinearity=lasagne.nonlinearities.rectify)
+            nonlinearity=lasagne.nonlinearities.rectify,
+            W=lasagne.init.HeNormal(gain='relu'))
     # POOL
     network = lasagne.layers.MaxPool2DLayer(network, pool_size=(2, 2))
     
     # FC
     network = lasagne.layers.DenseLayer(
             lasagne.layers.dropout(network, p=dropout_rate),
-            num_units=2048,
-            nonlinearity=lasagne.nonlinearities.rectify)
+            num_units=1024*complexity,
+            nonlinearity=lasagne.nonlinearities.rectify,
+            W=lasagne.init.HeNormal(gain='relu'))
     # FC
     network = lasagne.layers.DenseLayer(
             lasagne.layers.dropout(network, p=dropout_rate),
-            num_units=2048,
-            nonlinearity=lasagne.nonlinearities.rectify)
+            num_units=1024*complexity,
+            nonlinearity=lasagne.nonlinearities.rectify,
+            W=lasagne.init.HeNormal(gain='relu'))
     
     # And, finally, output layer with 50% dropout on its inputs:
     network = lasagne.layers.DenseLayer(
             lasagne.layers.dropout(network, p=dropout_rate),
             num_units=36,
-            nonlinearity=lasagne.nonlinearities.softmax)
+            nonlinearity=lasagne.nonlinearities.softmax,
+            W=lasagne.init.HeNormal(gain=1.0))
     
     prediction = lasagne.layers.get_output(network)
     loss = lasagne.objectives.categorical_crossentropy(prediction, y_var)

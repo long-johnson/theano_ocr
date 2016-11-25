@@ -12,6 +12,8 @@ import os
 import lasagne
 import keras
 from keras.preprocessing import image
+import winsound
+
 import nn_models
 
 dataset_dir = "data/font/"
@@ -53,13 +55,13 @@ Yval = np.array(Yval, dtype=np.int64)
 # learning params
 #
 
-seed = 2
+seed = 1
 n_epochs = 500
 batch_size = 512
-alpha = np.float32(1e-2)     # learning rate
-lambd = 0.0    # regularization coefficient
+alpha = np.float32(2e-4)     # learning rate
+lambd = 0.01    # regularization coefficient
 mu = np.float32(0.9)        # momentum rate
-dropout_rate = 0.0
+dropout_rate = 0.2
 
 
 #
@@ -80,7 +82,7 @@ def iterate_minibatches(X, Y, batch_size, shuffle=False):
     if shuffle:
         indices = np.arange(len(X))
         np.random.shuffle(indices)
-    for start_idx in range(0, len(X) - batch_size + 1, batch_size):
+    for start_idx in range(0, len(X), batch_size):
         if shuffle:
             excerpt = indices[start_idx : start_idx + batch_size]
         else:
@@ -114,16 +116,18 @@ train_costs = []
 train_accs = []
 val_costs = []
 val_accs = []
+
 time_experiment_start = time.time()
-lookback = 5
+lookback = 10
 lookback_epoch = 0
 for epoch in range(n_epochs):
     time_start = time.time()
     # pass through augmented training data with dropout
     n_train_batches = int(np.ceil(len(Xtrain) / batch_size))
-    datagen_train = datagen.flow(Xtrain, Ytrain, batch_size, shuffle=False)
+    # datagen_train = datagen.flow(Xtrain, Ytrain, batch_size, shuffle=False)
+    datagen_train = iterate_minibatches(Xtrain, Ytrain, batch_size, shuffle=False)
     for step in range(n_train_batches):
-        Xbatch, Ybatch = datagen_train.next()
+        Xbatch, Ybatch = next(datagen_train)
         Xbatch = np.float32(Xbatch)
         train_fn(Xbatch, Ybatch, alpha, mu)
     # pass through unmodified training data without dropout
@@ -138,17 +142,18 @@ for epoch in range(n_epochs):
     # pass through validation data without dropout
     val_acc = 0.0
     val_cost = 0.0
+    n_val_batches = int(np.ceil(len(Xval) / batch_size))
     for Xbatch, Ybatch in iterate_minibatches(Xval, Yval, batch_size, shuffle=False):
         cost, pred = val_fn(Xbatch, Ybatch)
         val_acc += np.count_nonzero(np.equal(pred, Ybatch))
         val_cost += cost
     val_acc = 100.0 * val_acc / len(Yval)
-    val_cost /= n_train_batches
+    val_cost /= n_val_batches
     # decrease learning rate on some condition
     if lookback_epoch >= lookback\
     and min(train_costs[-lookback:]) < train_cost:
         alpha = 0.5 * alpha
-        # lookback = lookback * 1.1
+        lookback += 5
         lookback_epoch = 0
         mu = np.float32(0.99)
     # save data to plot it later
@@ -161,12 +166,14 @@ for epoch in range(n_epochs):
            .format(epoch, train_cost, val_cost, train_acc, val_acc, time.time() - time_start))
     print ("alpha={}, mu={}".format(alpha, mu))
     lookback_epoch += 1
+    if np.isnan(train_cost):
+        winsound.Beep(500, 2000)
+        raise OverflowError("train cost is nan")
 print()
 print ("time elapsed, min")
 print ((time.time() - time_experiment_start) / 60)
 print("final train cost")
 print(train_costs[-1])
-import winsound
 winsound.Beep(500, 2000)
 
 
@@ -197,9 +204,10 @@ print(val_acc)
 # cost plot
 #
 plt.figure()
-suptitle = "CNNv1_n_epochs={}, batch_size={}, alpha={}, lambd={}, mu={}, acc_train={:.1f}, acc_val={:.1f},"\
+suptitle = "CNNflorian_complexity=1_n_epochs={}, batch_size={}, alpha={}, lambd={}, mu={}, acc_train={:.1f}, acc_val={:.1f},"\
            "dropout={}, seed={}"\
-           .format(n_epochs, batch_size, alpha, lambd, mu, train_acc, val_acc, dropout_rate, seed)
+           .format(len(train_costs), batch_size, alpha, lambd, mu,
+                   train_acc, val_acc, dropout_rate, seed)
 plt.suptitle(suptitle)
 plt.plot(train_costs, label="train cost")
 plt.plot(val_costs, label="val cost")
@@ -253,13 +261,23 @@ for i in range(32):
     #plt.colorbar()
 plt.show()
 
+plt.figure()
+params = lasagne.layers.get_all_param_values(network)
+params_conv_l1 = params[4]
+for i in range(64):
+    plt.subplot(8, 8, i+1)
+    params_conv_l1_visual = np.flipud(params_conv_l1[i, 0])
+    plt.pcolor(params_conv_l1_visual, cmap=plt.cm.Greys_r)
+    #plt.colorbar()
+plt.show()
+
 #
 # visualize FC layer
 #
-plt.figure()
-plt.pcolor(np.flipud(params[2]), cmap=plt.cm.Greys_r)
-plt.colorbar()
-plt.show()
+#plt.figure()
+#plt.pcolor(np.flipud(params[2]), cmap=plt.cm.Greys_r)
+#plt.colorbar()
+#plt.show()
 
 
 
