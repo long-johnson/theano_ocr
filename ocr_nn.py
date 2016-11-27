@@ -20,10 +20,12 @@ dataset_dir = "data/font/"
 out_dir = "out/"
 Xtrain_file = "XTrain_u.npz"
 Xval_file = "XVal_u.npz"
+Xtest_file = "XTest_u.npz"
 Ytrain_file = "YTrain_u.npz"
 Yval_file = "YVal_u.npz"
+Ytest_file = "YTest_u.npz"
 
-Xtrain, Ytrain, Xval, Yval = None, None, None, None
+Xtrain, Ytrain, Xval, Yval, Xtest, Ytest = None, None, None, None, None, None
 gc.collect()
 if Xtrain is None:
     Xtrain = np.array(np.load(dataset_dir + Xtrain_file)["arr_0"], dtype=np.float32)
@@ -33,6 +35,10 @@ if Xval is None:
     Xval = np.array(np.load(dataset_dir + Xval_file)["arr_0"], dtype=np.float32)
 if Yval is None:
     Yval = np.array(np.load(dataset_dir + Yval_file)["arr_0"], dtype=np.int8)
+if Xtest is None:
+    Xtest = np.array(np.load(dataset_dir + Xtest_file)["arr_0"], dtype=np.float32)
+if Ytest is None:
+    Ytest = np.array(np.load(dataset_dir + Ytest_file)["arr_0"], dtype=np.int8)
 
 # shuffle train data
 indices = np.arange(len(Xtrain))
@@ -48,8 +54,10 @@ pic_size = int(np.sqrt(n_feats))
 # reshape data
 Xtrain = Xtrain.reshape((len(Xtrain), 1, pic_size, pic_size))
 Xval = Xval.reshape((len(Xval), 1, pic_size, pic_size))
+Xtest = Xtest.reshape((len(Xtest), 1, pic_size, pic_size))
 Ytrain = np.array(Ytrain, dtype=np.int64)
 Yval = np.array(Yval, dtype=np.int64)
+Ytest = np.array(Ytest, dtype=np.int64)
 
 #
 # learning params
@@ -58,9 +66,11 @@ Yval = np.array(Yval, dtype=np.int64)
 seed = 1
 n_epochs = 500
 batch_size = 512
-alpha = np.float32(2e-4)     # learning rate
+alpha_init = 8e-4 # learning rate
+alpha = np.float32(alpha_init)     
 lambd = 0.01    # regularization coefficient
-mu = np.float32(0.9)        # momentum rate
+mu_init = 0.9
+mu = np.float32(mu_init)        # momentum rate
 dropout_rate = 0.2
 
 
@@ -120,6 +130,8 @@ val_accs = []
 time_experiment_start = time.time()
 lookback = 10
 lookback_epoch = 0
+
+
 for epoch in range(n_epochs):
     time_start = time.time()
     # pass through augmented training data with dropout
@@ -153,7 +165,7 @@ for epoch in range(n_epochs):
     if lookback_epoch >= lookback\
     and min(train_costs[-lookback:]) < train_cost:
         alpha = 0.5 * alpha
-        lookback += 5
+        # lookback += 5
         lookback_epoch = 0
         mu = np.float32(0.99)
     # save data to plot it later
@@ -204,9 +216,9 @@ print(val_acc)
 # cost plot
 #
 plt.figure()
-suptitle = "CNNflorian_complexity=1_n_epochs={}, batch_size={}, alpha={}, lambd={}, mu={}, acc_train={:.1f}, acc_val={:.1f},"\
+suptitle = "CNNflorian-adam_complexity=1_n_epochs={}, batch_size={}, alpha={}, lambd={}, mu={}, acc_train={:.1f}, acc_val={:.1f},"\
            "dropout={}, seed={}"\
-           .format(len(train_costs), batch_size, alpha, lambd, mu,
+           .format(len(train_costs), batch_size, alpha_init, lambd, mu_init,
                    train_acc, val_acc, dropout_rate, seed)
 plt.suptitle(suptitle)
 plt.plot(train_costs, label="train cost")
@@ -280,5 +292,10 @@ plt.show()
 #plt.show()
 
 
-
+test_acc = 0
+for Xbatch, Ybatch in iterate_minibatches(Xtest, Ytest, batch_size):
+    test_acc += np.count_nonzero(np.equal(val_fn(Xbatch, Ybatch)[1], Ybatch))
+test_acc = 100.0 * test_acc / len(Ytest)
+print("final test prediction")
+print(test_acc)
 

@@ -170,8 +170,10 @@ def build_cnn_florian(pic_size, lambd, dropout_rate=0.0, complexity=4):
     loss = loss.mean() + lambd * \
         lasagne.regularization.regularize_network_params(network, lasagne.regularization.l2)
     params = lasagne.layers.get_all_params(network, trainable=True)
-    updates = lasagne.updates.nesterov_momentum(
-            loss, params, learning_rate=alpha_var, momentum=mu_var)
+    updates = lasagne.updates.adam(loss, params, learning_rate=alpha_var,
+                                  beta1=mu_var)
+    #updates = lasagne.updates.nesterov_momentum(
+    #        loss, params, learning_rate=alpha_var, momentum=mu_var)
     
     # Create a loss expression for validation/testing. The crucial difference
     # here is that we do a deterministic forward pass through the network,
