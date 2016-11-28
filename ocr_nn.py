@@ -16,7 +16,7 @@ import winsound
 
 import nn_models
 
-dataset_dir = "data/font/"
+dataset_dir = "fnt_dataset/"
 out_dir = "out/"
 Xtrain_file = "XTrain_u.npz"
 Xval_file = "XVal_u.npz"
@@ -122,6 +122,7 @@ datagen.fit(Xtrain)
 #
 # Training
 #
+print("training start")
 train_costs = []
 train_accs = []
 val_costs = []

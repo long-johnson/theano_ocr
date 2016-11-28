@@ -75,7 +75,7 @@ def build_cnn_v1(pic_size, lambd, dropout_rate=0.0):
     
     return network, train_fn, val_fn
     
-def build_cnn_florian(pic_size, lambd, dropout_rate=0.0, complexity=4):
+def build_cnn_florian(pic_size, lambd=0.0, dropout_rate=0.0, complexity=4):
     """
     Florian Muellerklein’s VGG-like network, described here:
     http://florianmuellerklein.github.io/cnn_streetview/
