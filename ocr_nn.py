@@ -82,9 +82,9 @@ np.random.seed(seed)
 #
 # Theano graph construction
 #
-network, train_fn, val_fn = nn_models.build_cnn_florian(pic_size, lambd,
-                                                        dropout_rate=dropout_rate,
-                                                        complexity=1)
+network, train_fn, val_fn, _ = nn_models.build_cnn_florian(pic_size, lambd,
+                                                           dropout_rate=dropout_rate,
+                                                           complexity=1)
 
 
 # shuffling is slow
@@ -299,4 +299,3 @@ for Xbatch, Ybatch in iterate_minibatches(Xtest, Ytest, batch_size):
 test_acc = 100.0 * test_acc / len(Ytest)
 print("final test prediction")
 print(test_acc)
-

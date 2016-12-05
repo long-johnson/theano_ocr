@@ -41,7 +41,7 @@ X = X.reshape((len(X), 1, pic_size, pic_size))
 
 print("start")
 
-network, _, val_fn = nn_models.build_cnn_florian(pic_size, complexity=1)
+network, _, val_fn, _ = nn_models.build_cnn_florian(pic_size, complexity=1)
 npz_file = np.load(out_dir + filename_params)
 params = [npz_file["arr_{}".format(i)] for i in range(len(npz_file.files))]
 #params = 

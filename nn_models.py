@@ -26,7 +26,7 @@ def build_cnn_v1(pic_size, lambd, dropout_rate=0.0):
     network = lasagne.layers.Conv2DLayer(
             network, num_filters=32, filter_size=(5, 5), pad = 'same',
             nonlinearity=lasagne.nonlinearities.rectify,
-            W=lasagne.init.GlorotUniform())
+            W=lasagne.init.HeUniform())
     network = lasagne.layers.MaxPool2DLayer(network, pool_size=(2, 2))
     
     # Another convolution with 32 5x5 kernels, and another 2x2 pooling:
@@ -53,8 +53,7 @@ def build_cnn_v1(pic_size, lambd, dropout_rate=0.0):
     loss = loss.mean() + lambd * \
         lasagne.regularization.regularize_network_params(network, lasagne.regularization.l2)
     params = lasagne.layers.get_all_params(network, trainable=True)
-    updates = lasagne.updates.nesterov_momentum(
-            loss, params, learning_rate=alpha_var, momentum=mu_var)
+    updates = lasagne.updates.adam(loss, params, learning_rate=alpha_var, beta1=mu_var)
     
     # Create a loss expression for validation/testing. The crucial difference
     # here is that we do a deterministic forward pass through the network,
@@ -171,9 +170,7 @@ def build_cnn_florian(pic_size, lambd=0.0, dropout_rate=0.0, complexity=4):
         lasagne.regularization.regularize_network_params(network, lasagne.regularization.l2)
     params = lasagne.layers.get_all_params(network, trainable=True)
     updates = lasagne.updates.adam(loss, params, learning_rate=alpha_var,
-                                  beta1=mu_var)
-    #updates = lasagne.updates.nesterov_momentum(
-    #        loss, params, learning_rate=alpha_var, momentum=mu_var)
+                                   beta1=mu_var)
     
     # Create a loss expression for validation/testing. The crucial difference
     # here is that we do a deterministic forward pass through the network,
@@ -191,5 +188,7 @@ def build_cnn_florian(pic_size, lambd=0.0, dropout_rate=0.0, complexity=4):
     
     # Compile a second function computing the validation loss and accuracy:
     val_fn = theano.function([x_var, y_var], [test_loss, test_pred])
+
+    test_fn = theano.function([x_var], [test_pred, test_prediction])
     
-    return network, train_fn, val_fn
+    return network, train_fn, val_fn, test_fn
