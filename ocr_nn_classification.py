@@ -24,11 +24,12 @@ def label_to_char(label: int):
 
 out_dir = "out/"
 #incorrect_dir = out_dir + "incorrect_dir/"
-dataset_dir = "fnt_dataset/"
-filename_params = "CNNv1_n_epochs=500, batch_size=512, alpha=1.000000013351432e-10, lambd=0.0, mu=0.8999999761581421, acc_train=0.0, acc_val=0.0,dropout=0.0, seed=2.npz"
-incorrect_dir = out_dir + filename_params[:-4] + "/"
-filename_X = "XTrain_u.npz"
-filename_Y = "YTrain_u.npz"
+dataset_dir = "data/font/"
+filename_params = "CNNflorian-adam_complexity=1_n_epochs=173, batch_size=512, alpha=0.0008, lambd=0.01, mu=0.9, acc_train=98.9, acc_val=97.1,dropout=0.2, seed=1.npz"
+filename_X = "XVal_u.npz"
+filename_Y = "YVal_u.npz"
+incorrect_dir = out_dir + "incorrect_" + filename_X + "_" + filename_params[:-4] + "/"
+
 
 batch_size = 1024
 
