@@ -74,7 +74,7 @@ def build_cnn_v1(pic_size, lambd, dropout_rate=0.0):
     
     return network, train_fn, val_fn
     
-def build_cnn_florian(pic_size, lambd=0.0, dropout_rate=0.0, complexity=4):
+def build_cnn_florian(pic_size, n_of_classes, lambd=0.0, dropout_rate=0.0, complexity=4):
     """
     Florian Muellerklein’s VGG-like network, described here:
     http://florianmuellerklein.github.io/cnn_streetview/
@@ -157,10 +157,10 @@ def build_cnn_florian(pic_size, lambd=0.0, dropout_rate=0.0, complexity=4):
             nonlinearity=lasagne.nonlinearities.rectify,
             W=lasagne.init.HeNormal(gain='relu'))
     
-    # And, finally, output layer with 50% dropout on its inputs:
+    # And, finally, output layer with dropout on its inputs:
     network = lasagne.layers.DenseLayer(
             lasagne.layers.dropout(network, p=dropout_rate),
-            num_units=36,
+            num_units=n_of_classes,
             nonlinearity=lasagne.nonlinearities.softmax,
             W=lasagne.init.HeNormal(gain=1.0))
     
@@ -169,8 +169,8 @@ def build_cnn_florian(pic_size, lambd=0.0, dropout_rate=0.0, complexity=4):
     loss = loss.mean() + lambd * \
         lasagne.regularization.regularize_network_params(network, lasagne.regularization.l2)
     params = lasagne.layers.get_all_params(network, trainable=True)
-    updates = lasagne.updates.adam(loss, params, learning_rate=alpha_var,
-                                   beta1=mu_var)
+#    updates = lasagne.updates.adamax(loss, params, learning_rate=alpha_var, beta1=mu_var)
+    updates = lasagne.updates.adam(loss, params, learning_rate=alpha_var, beta1=mu_var)
     
     # Create a loss expression for validation/testing. The crucial difference
     # here is that we do a deterministic forward pass through the network,
